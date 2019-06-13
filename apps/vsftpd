@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+# Title:      PGBlitz (fauria/vsftpd)
+# Author(s):  MrDoob
+# URL:        https://pgblitz.com - http://github.pgblitz.com
+# GNU:        General Public License v3.0
+################################################################################
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    # FACTS #######################################################################
+    - name: 'Set Known Facts'
+      set_fact:
+        pgrole: 'vsftpd'
+        intport: '20'
+        extport: '20'
+        intport2: '21'
+        extport2: '55'
+        intport3: '21101'
+        extport3: '21101'
+        intport4: '21102'
+        extport4: '21102'
+        intport5: '21103'
+        extport5: '21103'
+        intport6: '21104'
+        extport6: '21104'
+        intport7: '21105'
+        extport7: '21105'
+        intport8: '21106'
+        extport8: '21106'
+        intport9: '21107'
+        extport9: '21107'
+        intport10: '21108'
+        extport10: '21108'
+        intport11: '21109'
+        extport11: '21109'
+        intport12: '21110'
+        extport12: '21110'
+        image: 'fauria/vsftpd:latest'
+
+    # CORE (MANDATORY) ############################################################
+    - name: 'Including cron job'
+      include_tasks: '/opt/coreapps/apps/_core.yml'
+
+    # LABELS ######################################################################
+    - name: 'Adding Traefik'
+      set_fact:
+        pg_labels:
+          traefik.enable: 'true'
+          traefik.port: '{{intport}}'
+          traefik.frontend.rule: 'Host:{{pgrole}}.{{domain.stdout}},'
+
+    - name: 'Setting PG Volumes'
+      set_fact:
+        pg_volumes:
+          - '/opt/appdata/{{pgrole}}:/etc/vsftpd/:rw'
+          - '/opt/appdata/vsftpd:/home/vsftpd:rw'
+          #- '/mnt:/home/vsftpd:ro'
+          - '/etc/localtime:/etc/localtime:ro'
+
+    - name: 'Setting PG ENV'
+      set_fact:
+        pg_env:
+          PUID: '1000'
+          PGID: '1000'
+          TZ: '${TZ}'
+          XFERLOG_STD_FORMAT: 'YES'
+#This line prevents the program from being able to connect, requires troubleshooting.
+#          LOG_STDOUT: '/opt/appdata/{{pgrole}}/log/'
+          FILE_OPEN_MODE: '0650'
+          LOCAL_UMASK: '002'   
+          FTP_USER: 'admin'
+# Set your password or run 'docker logs vsftpd' to find out password
+#          FTP_PASS: 'admin'
+          PASV_ADDRESS: '127.0.0.1'
+          PASV_MIN_PORT: '21100'
+          PASV_MAX_PORT: '21110'
+
+    # MAIN DEPLOYMENT #############################################################
+    - name: 'Deploying {{pgrole}}'
+      docker_container:
+        name: '{{pgrole}}'
+        image: '{{image}}'
+        pull: yes
+        published_ports:
+          - '{{ports.stdout}}{{extport}}:{{intport}}'
+          - '{{extport2}}:{{intport2}}'
+          - '{{extport3}}:{{intport3}}'
+          - '{{extport4}}:{{intport4}}'
+          - '{{extport5}}:{{intport5}}'
+          - '{{extport6}}:{{intport6}}'
+          - '{{extport7}}:{{intport7}}'
+          - '{{extport8}}:{{intport8}}'
+          - '{{extport9}}:{{intport9}}'
+          - '{{extport10}}:{{intport10}}'
+          - '{{extport11}}:{{intport11}}'
+          - '{{extport12}}:{{intport12}}'
+        volumes: '{{pg_volumes}}'
+        env: '{{pg_env}}'
+        restart_policy: always
+        networks:
+          - name: plexguide
+            aliases:
+              - '{{pgrole}}'
+        state: started
+        labels: '{{pg_labels}}'
